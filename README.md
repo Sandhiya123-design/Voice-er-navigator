@@ -313,6 +313,12 @@ New Rime response
 📄 Evidence
 
 See RIME_EVIDENCE.md for the detailed voice-engineering acceptance test, procedure, result, and limitations.
+## Deliverables
+
+- Live Demo: https://voice-er-navigator.onrender.com
+- GitHub Repository: https://github.com/Sandhiya123-design/Voice-er-navigator
+- Demo Video: [Voice ER Navigator Demo](./submission/Voice_ER_Navigator_Demo.mp4)
+- Rime Evidence: RIME_EVIDENCE.md
 
 ⚠️ Prototype Notice
 
