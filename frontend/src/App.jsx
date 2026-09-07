@@ -546,22 +546,22 @@ function App() {
 
   const getStatusIcon = () => {
     if (listening) {
-      return "â—‰";
+      return "◉";
     }
 
     if (isProcessing) {
-      return "â—Œ";
+      return "◌";
     }
 
     if (isSpeaking) {
-      return "â—–";
+      return "◖";
     }
 
     if (systemStatus === "interrupted") {
       return "!";
     }
 
-    return "âœ“";
+    return "✓";
   };
 
   return (
@@ -621,11 +621,7 @@ function App() {
         <section className="session-status">
           <div className="session-status-left">
             <div className={`status-symbol ${priority}`}>
-              {priority === "critical"
-                ? "!"
-                : priority === "high"
-                  ? "!"
-                  : "âœ“"}
+              {priority === "critical" ? "!" : priority === "high" ? "!" : "✓"}
             </div>
 
             <div>
@@ -687,7 +683,7 @@ function App() {
                   disabled={isProcessing}
                   aria-label="Start voice input"
                 >
-                  <span className="mic-icon">{listening ? "â—" : "â—‰"}</span>
+                  <span className="mic-icon">{listening ? "○" : "◉"}</span>
                 </button>
               </div>
 
@@ -711,7 +707,7 @@ function App() {
                 <div className="live-transcript">
                   <div className="transcript-label">LIVE TRANSCRIPT</div>
 
-                  <div className="transcript-text">â€œ{transcript}â€</div>
+                  <div className="transcript-text">“{transcript}”</div>
                 </div>
               )}
             </div>
@@ -760,9 +756,7 @@ function App() {
 
                   <div className="example-prompt">
                     Try saying:
-                    <strong>
-                      â€œMy father is having difficulty breathing.â€
-                    </strong>
+                    <strong>“My father is having difficulty breathing.”</strong>
                   </div>
                 </div>
               ) : (
@@ -797,12 +791,12 @@ function App() {
 
             <div className="conversation-footer">
               <button className="secondary-button" onClick={resetSession}>
-                <span>â†»</span>
+                <span>↻</span>
                 Reset Session
               </button>
 
               <div className="conversation-note">
-                No diagnosis â€¢ Navigation only
+                No diagnosis ”¢ Navigation only
               </div>
             </div>
           </div>
@@ -911,11 +905,7 @@ function App() {
               <div>
                 <div className="event-label">LATEST INTERRUPTION</div>
 
-                <div className="event-text">
-                  â€œ
-                  {lastInterruptedText}
-                  â€
-                </div>
+                <div className="event-text">“{lastInterruptedText}”</div>
               </div>
             </div>
           )}
@@ -936,7 +926,7 @@ function App() {
               disabled={isProcessing}
             >
               Run Interruption Test
-              <span>â†’</span>
+              <span>→</span>
             </button>
           </div>
         </section>
@@ -990,7 +980,7 @@ function App() {
             <div className="architecture-card">
               <div className="architecture-number">03</div>
 
-              <div className="architecture-icon">â†»</div>
+              <div className="architecture-icon">↻</div>
 
               <h3>Interruption Manager</h3>
 
