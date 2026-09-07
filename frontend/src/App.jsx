@@ -4,7 +4,7 @@ import SpeechRecognition, {
 } from "react-speech-recognition";
 import "./App.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = "https://voice-er-navigator-api.onrender.com";
 
 const STATES = {
   IDLE: "IDLE",
@@ -25,6 +25,7 @@ function App() {
     transcript,
     listening,
     browserSupportsSpeechRecognition,
+    isMicrophoneAvailable,
     resetTranscript,
   } = useSpeechRecognition();
 
@@ -36,12 +37,10 @@ function App() {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const [systemStatus, setSystemStatus] = useState("ready");
-  const [interruptionStatus, setInterruptionStatus] =
-    useState("idle");
+  const [interruptionStatus, setInterruptionStatus] = useState("idle");
 
   const [error, setError] = useState("");
-  const [lastInterruptedText, setLastInterruptedText] =
-    useState("");
+  const [lastInterruptedText, setLastInterruptedText] = useState("");
 
   const audioRef = useRef(null);
   const audioUrlRef = useRef(null);
@@ -67,10 +66,7 @@ function App() {
         audioRef.current.currentTime = 0;
         audioRef.current.src = "";
       } catch (err) {
-        console.error(
-          "Error stopping audio:",
-          err
-        );
+        console.error("Error stopping audio:", err);
       }
 
       audioRef.current = null;
@@ -98,9 +94,7 @@ function App() {
     }
 
     if (requestId !== requestIdRef.current) {
-      console.log(
-        "Ignoring stale speech request."
-      );
+      console.log("Ignoring stale speech request.");
       return;
     }
 
@@ -109,57 +103,41 @@ function App() {
       setSystemStatus("speaking");
       setError("");
 
-      console.log(
-        "Requesting Rime speech..."
-      );
+      console.log("Requesting Rime speech...");
 
-      const response = await fetch(
-        `${API_URL}/api/speak`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            text,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/speak`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text,
+        }),
+      });
 
       if (!response.ok) {
-        const errorText =
-          await response.text();
+        const errorText = await response.text();
 
-        console.error(
-          "Rime backend error:",
-          errorText
-        );
+        console.error("Rime backend error:", errorText);
 
-        throw new Error(
-          "Rime speech generation failed."
-        );
+        throw new Error("Rime speech generation failed.");
       }
 
-      const audioBlob =
-        await response.blob();
+      const audioBlob = await response.blob();
 
       console.log(
         "Rime audio received:",
         audioBlob.size,
         "bytes",
-        audioBlob.type
+        audioBlob.type,
       );
 
       /*
        * If the user interrupted while Rime
        * was generating audio, discard it.
        */
-      if (
-        requestId !== requestIdRef.current
-      ) {
-        console.log(
-          "Discarding stale Rime audio."
-        );
+      if (requestId !== requestIdRef.current) {
+        console.log("Discarding stale Rime audio.");
         return;
       }
 
@@ -167,13 +145,10 @@ function App() {
        * Clean up previous object URL.
        */
       if (audioUrlRef.current) {
-        URL.revokeObjectURL(
-          audioUrlRef.current
-        );
+        URL.revokeObjectURL(audioUrlRef.current);
       }
 
-      const audioUrl =
-        URL.createObjectURL(audioBlob);
+      const audioUrl = URL.createObjectURL(audioBlob);
 
       audioUrlRef.current = audioUrl;
 
@@ -194,21 +169,14 @@ function App() {
        * When audio finishes.
        */
       audio.onended = () => {
-        console.log(
-          "Rime audio finished."
-        );
+        console.log("Rime audio finished.");
 
-        if (
-          audioUrlRef.current === audioUrl
-        ) {
+        if (audioUrlRef.current === audioUrl) {
           URL.revokeObjectURL(audioUrl);
           audioUrlRef.current = null;
         }
 
-        if (
-          requestId ===
-          requestIdRef.current
-        ) {
+        if (requestId === requestIdRef.current) {
           audioRef.current = null;
           setIsSpeaking(false);
           setSystemStatus("ready");
@@ -219,28 +187,18 @@ function App() {
        * Audio loading error.
        */
       audio.onerror = (event) => {
-        console.error(
-          "Audio playback error:",
-          event
-        );
+        console.error("Audio playback error:", event);
 
-        if (
-          audioUrlRef.current === audioUrl
-        ) {
+        if (audioUrlRef.current === audioUrl) {
           URL.revokeObjectURL(audioUrl);
           audioUrlRef.current = null;
         }
 
-        if (
-          requestId ===
-          requestIdRef.current
-        ) {
+        if (requestId === requestIdRef.current) {
           audioRef.current = null;
           setIsSpeaking(false);
           setSystemStatus("ready");
-          setError(
-            "Unable to play the Rime response."
-          );
+          setError("Unable to play the Rime response.");
         }
       };
 
@@ -249,45 +207,30 @@ function App() {
        */
       audio.load();
 
-      console.log(
-        "Attempting to play Rime audio..."
-      );
+      console.log("Attempting to play Rime audio...");
 
       /*
        * Play the generated speech.
        */
       await audio.play();
 
-      console.log(
-        "Rime audio playback started."
-      );
+      console.log("Rime audio playback started.");
     } catch (err) {
-      console.error(
-        "Rime playback error:",
-        err
-      );
+      console.error("Rime playback error:", err);
 
-      if (
-        requestId ===
-        requestIdRef.current
-      ) {
+      if (requestId === requestIdRef.current) {
         setIsSpeaking(false);
         setSystemStatus("ready");
 
         /*
          * Browser autoplay error.
          */
-        if (
-          err?.name ===
-          "NotAllowedError"
-        ) {
+        if (err?.name === "NotAllowedError") {
           setError(
-            "Browser blocked audio playback. Click the microphone once and try again."
+            "Browser blocked audio playback. Click the microphone once and try again.",
           );
         } else {
-          setError(
-            "Rime speech could not be played."
-          );
+          setError("Rime speech could not be played.");
         }
       }
     }
@@ -299,8 +242,7 @@ function App() {
    * ---------------------------------------------------------
    */
   const processMessage = async (message) => {
-    const cleanMessage =
-      message.trim();
+    const cleanMessage = message.trim();
 
     if (!cleanMessage) {
       return;
@@ -309,8 +251,7 @@ function App() {
     /*
      * Create a new request ID.
      */
-    const currentRequestId =
-      ++requestIdRef.current;
+    const currentRequestId = ++requestIdRef.current;
 
     /*
      * Stop any previous speech.
@@ -321,8 +262,7 @@ function App() {
      * stopSpeaking increments requestId,
      * so create the final ID after stopping.
      */
-    const activeRequestId =
-      requestIdRef.current;
+    const activeRequestId = requestIdRef.current;
 
     setError("");
     setIsProcessing(true);
@@ -336,66 +276,45 @@ function App() {
       {
         role: "user",
         text: cleanMessage,
-        time: new Date().toLocaleTimeString(
-          [],
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        ),
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       },
     ]);
 
     try {
-      const response =
-        await fetch(
-          `${API_URL}/api/emergency/analyze`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              message: cleanMessage,
-              currentState:
-                emergencyState,
-            }),
-          }
-        );
+      const response = await fetch(`${API_URL}/api/emergency/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: cleanMessage,
+          currentState: emergencyState,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(
-          "Emergency analysis failed."
-        );
+        throw new Error("Emergency analysis failed.");
       }
 
-      const result =
-        await response.json();
+      const result = await response.json();
 
       /*
        * Ignore stale responses.
        */
-      if (
-        activeRequestId !==
-        requestIdRef.current
-      ) {
-        console.log(
-          "Ignoring stale emergency response."
-        );
+      if (activeRequestId !== requestIdRef.current) {
+        console.log("Ignoring stale emergency response.");
         return;
       }
 
       /*
        * Update emergency state.
        */
-      setEmergencyState(
-        result.state
-      );
+      setEmergencyState(result.state);
 
-      setPriority(
-        result.priority
-      );
+      setPriority(result.priority);
 
       /*
        * Add assistant response.
@@ -405,13 +324,10 @@ function App() {
         {
           role: "assistant",
           text: result.response,
-          time: new Date().toLocaleTimeString(
-            [],
-            {
-              hour: "2-digit",
-              minute: "2-digit",
-            }
-          ),
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         },
       ]);
 
@@ -420,26 +336,15 @@ function App() {
       /*
        * Generate and play Rime speech.
        */
-      await speakWithRime(
-        result.response,
-        activeRequestId
-      );
+      await speakWithRime(result.response, activeRequestId);
     } catch (err) {
-      console.error(
-        "Emergency processing error:",
-        err
-      );
+      console.error("Emergency processing error:", err);
 
-      if (
-        activeRequestId ===
-        requestIdRef.current
-      ) {
+      if (activeRequestId === requestIdRef.current) {
         setIsProcessing(false);
         setSystemStatus("ready");
 
-        setError(
-          "Unable to connect to the emergency navigation service."
-        );
+        setError("Unable to connect to the emergency navigation service.");
       }
     }
   };
@@ -450,39 +355,40 @@ function App() {
    * ---------------------------------------------------------
    */
   useEffect(() => {
-    if (
-      previousListeningRef.current &&
-      !listening &&
-      transcript.trim()
-    ) {
-      const finalTranscript =
-        transcript.trim();
+    if (previousListeningRef.current && !listening && transcript.trim()) {
+      const finalTranscript = transcript.trim();
 
-      if (
-        finalTranscript !==
-        processingTranscriptRef.current
-      ) {
-        processingTranscriptRef.current =
-          finalTranscript;
+      if (finalTranscript !== processingTranscriptRef.current) {
+        processingTranscriptRef.current = finalTranscript;
 
-        processMessage(
-          finalTranscript
-        );
+        processMessage(finalTranscript);
 
         setTimeout(() => {
           resetTranscript();
-          processingTranscriptRef.current =
-            "";
+          processingTranscriptRef.current = "";
         }, 100);
       }
     }
 
-    previousListeningRef.current =
-      listening;
-  }, [
-    listening,
-    transcript,
-  ]);
+    previousListeningRef.current = listening;
+  }, [listening, transcript]);
+
+  /*
+   * ---------------------------------------------------------
+   * MOBILE SPEECH RECOGNITION FEEDBACK
+   * ---------------------------------------------------------
+   */
+  useEffect(() => {
+    if (!listening && !transcript.trim() && systemStatus === "listening") {
+      console.log("Speech recognition stopped without receiving a transcript.");
+
+      setSystemStatus("ready");
+
+      setError(
+        "No speech was detected. Please tap the microphone and speak clearly.",
+      );
+    }
+  }, [listening, transcript, systemStatus]);
 
   /*
    * ---------------------------------------------------------
@@ -492,63 +398,57 @@ function App() {
   const startListening = async () => {
     setError("");
 
-    if (
-      !browserSupportsSpeechRecognition
-    ) {
+    console.log("Starting speech recognition...");
+    console.log("Browser supports speech:", browserSupportsSpeechRecognition);
+    console.log("Microphone available:", isMicrophoneAvailable);
+
+    if (!browserSupportsSpeechRecognition) {
       setError(
-        "Speech recognition is not supported in this browser."
+        "Speech recognition is not supported in this browser. Try Chrome.",
       );
       return;
     }
 
-    /*
-     * If assistant is currently speaking,
-     * this is an interruption.
-     */
+    if (isMicrophoneAvailable === false) {
+      setError(
+        "Microphone access is unavailable. Check your browser and phone microphone permissions.",
+      );
+      return;
+    }
+
+    // If assistant is currently speaking, this is an interruption.
     if (isSpeaking) {
-      console.log(
-        "USER INTERRUPTION DETECTED"
-      );
+      console.log("USER INTERRUPTION DETECTED");
 
-      setInterruptionStatus(
-        "detected"
-      );
+      setInterruptionStatus("detected");
+      setLastInterruptedText("User interruption detected");
 
-      setLastInterruptedText(
-        "User interruption detected"
-      );
-
-      /*
-       * Immediately stop old speech.
-       */
+      // Stop the old Rime response immediately.
       stopSpeaking();
 
-      setSystemStatus(
-        "interrupted"
-      );
+      setSystemStatus("interrupted");
     }
 
     resetTranscript();
 
     try {
-      await SpeechRecognition.startListening(
-        {
-          continuous: false,
-          language: "en-US",
-        }
-      );
+      setSystemStatus("listening");
 
-      setSystemStatus(
-        "listening"
-      );
+      await SpeechRecognition.startListening({
+        continuous: false,
+        language: "en-US",
+      });
+
+      console.log("Speech recognition started.");
     } catch (err) {
-      console.error(
-        "Microphone error:",
-        err
-      );
+      console.error("Speech recognition start error:", err);
+
+      setSystemStatus("ready");
 
       setError(
-        "Microphone could not be started."
+        `Microphone could not be started: ${
+          err?.message || err?.name || "Unknown browser error"
+        }`,
       );
     }
   };
@@ -558,158 +458,111 @@ function App() {
    * RESET SESSION
    * ---------------------------------------------------------
    */
-  const resetSession =
-    async () => {
-      stopSpeaking();
+  const resetSession = async () => {
+    stopSpeaking();
 
-      try {
-        await fetch(
-          `${API_URL}/api/emergency/reset`,
-          {
-            method: "POST",
-          }
-        );
-      } catch (err) {
-        console.error(
-          "Reset error:",
-          err
-        );
-      }
+    try {
+      await fetch(`${API_URL}/api/emergency/reset`, {
+        method: "POST",
+      });
+    } catch (err) {
+      console.error("Reset error:", err);
+    }
 
-      setMessages([]);
-      setEmergencyState(
-        STATES.IDLE
-      );
-      setPriority("normal");
-      setIsProcessing(false);
-      setIsSpeaking(false);
-      setInterruptionStatus(
-        "idle"
-      );
-      setLastInterruptedText("");
-      setSystemStatus("ready");
-      setError("");
+    setMessages([]);
+    setEmergencyState(STATES.IDLE);
+    setPriority("normal");
+    setIsProcessing(false);
+    setIsSpeaking(false);
+    setInterruptionStatus("idle");
+    setLastInterruptedText("");
+    setSystemStatus("ready");
+    setError("");
 
-      resetTranscript();
-    };
+    resetTranscript();
+  };
 
   /*
    * ---------------------------------------------------------
    * INTERRUPTION DEMO
    * ---------------------------------------------------------
    */
-  const runInterruptionDemo =
-    async () => {
-      setError("");
+  const runInterruptionDemo = async () => {
+    setError("");
 
-      setInterruptionStatus(
-        "detected"
-      );
+    setInterruptionStatus("detected");
 
-      setSystemStatus(
-        "interrupted"
-      );
+    setSystemStatus("interrupted");
 
-      /*
-       * Stop any current speech.
-       */
-      stopSpeaking();
+    /*
+     * Stop any current speech.
+     */
+    stopSpeaking();
 
-      setLastInterruptedText(
-        "Wait! He's unconscious!"
-      );
+    setLastInterruptedText("Wait! He's unconscious!");
 
-      await new Promise(
-        (resolve) =>
-          setTimeout(
-            resolve,
-            600
-          )
-      );
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
-      setInterruptionStatus(
-        "processing"
-      );
+    setInterruptionStatus("processing");
 
-      await processMessage(
-        "Wait! He's unconscious!"
-      );
+    await processMessage("Wait! He's unconscious!");
 
-      setInterruptionStatus(
-        "recovered"
-      );
-    };
+    setInterruptionStatus("recovered");
+  };
 
-  const stateLabel =
-    STATE_LABELS[
-      emergencyState
-    ] || "Ready";
+  const stateLabel = STATE_LABELS[emergencyState] || "Ready";
 
-  const getPriorityLabel =
-    () => {
-      if (
-        priority ===
-        "critical"
-      ) {
-        return "Critical";
-      }
+  const getPriorityLabel = () => {
+    if (priority === "critical") {
+      return "Critical";
+    }
 
-      if (
-        priority === "high"
-      ) {
-        return "High";
-      }
+    if (priority === "high") {
+      return "High";
+    }
 
-      return "Normal";
-    };
+    return "Normal";
+  };
 
-  const getStatusText =
-    () => {
-      if (listening) {
-        return "Listening to you";
-      }
+  const getStatusText = () => {
+    if (listening) {
+      return "Listening to you";
+    }
 
-      if (isProcessing) {
-        return "Processing emergency information";
-      }
+    if (isProcessing) {
+      return "Processing emergency information";
+    }
 
-      if (isSpeaking) {
-        return "Assistant is speaking";
-      }
+    if (isSpeaking) {
+      return "Assistant is speaking";
+    }
 
-      if (
-        systemStatus ===
-        "interrupted"
-      ) {
-        return "Response interrupted";
-      }
+    if (systemStatus === "interrupted") {
+      return "Response interrupted";
+    }
 
-      return "Ready for voice input";
-    };
+    return "Ready for voice input";
+  };
 
-  const getStatusIcon =
-    () => {
-      if (listening) {
-        return "◉";
-      }
+  const getStatusIcon = () => {
+    if (listening) {
+      return "â—‰";
+    }
 
-      if (isProcessing) {
-        return "◌";
-      }
+    if (isProcessing) {
+      return "â—Œ";
+    }
 
-      if (isSpeaking) {
-        return "◖";
-      }
+    if (isSpeaking) {
+      return "â—–";
+    }
 
-      if (
-        systemStatus ===
-        "interrupted"
-      ) {
-        return "!";
-      }
+    if (systemStatus === "interrupted") {
+      return "!";
+    }
 
-      return "✓";
-    };
+    return "âœ“";
+  };
 
   return (
     <div className="app">
@@ -719,15 +572,11 @@ function App() {
           <div className="brand-mark">
             <span className="brand-pulse"></span>
 
-            <span className="brand-cross">
-              +
-            </span>
+            <span className="brand-cross">+</span>
           </div>
 
           <div>
-            <div className="brand-name">
-              Voice ER Navigator
-            </div>
+            <div className="brand-name">Voice ER Navigator</div>
 
             <div className="brand-caption">
               Voice-first emergency navigation
@@ -739,16 +588,12 @@ function App() {
           <div className="engine-indicator">
             <span className="online-dot"></span>
 
-            <span>
-              Voice Engine Online
-            </span>
+            <span>Voice Engine Online</span>
           </div>
 
           <div className="topbar-divider"></div>
 
-          <div className="system-label">
-            Prototype
-          </div>
+          <div className="system-label">Prototype</div>
         </div>
       </header>
 
@@ -758,74 +603,51 @@ function App() {
         <section className="hero">
           <div className="hero-badge">
             <span className="badge-dot"></span>
-
             VOICE-FIRST EMERGENCY NAVIGATION
           </div>
 
           <h1>
             Emergency guidance that
-            <span>
-              {" "}
-              listens when things change.
-            </span>
+            <span> listens when things change.</span>
           </h1>
 
           <p>
-            A voice-first emergency
-            navigation prototype
-            designed to maintain
-            conversation state and
-            recover when critical
-            information changes.
+            A voice-first emergency navigation prototype designed to maintain
+            conversation state and recover when critical information changes.
           </p>
         </section>
 
         {/* SESSION STATUS */}
         <section className="session-status">
           <div className="session-status-left">
-            <div
-              className={`status-symbol ${priority}`}
-            >
-              {priority ===
-              "critical"
+            <div className={`status-symbol ${priority}`}>
+              {priority === "critical"
                 ? "!"
                 : priority === "high"
-                ? "!"
-                : "✓"}
+                  ? "!"
+                  : "âœ“"}
             </div>
 
             <div>
-              <div className="session-status-title">
-                Emergency Session
-              </div>
+              <div className="session-status-title">Emergency Session</div>
 
-              <div className="session-status-subtitle">
-                {stateLabel}
-              </div>
+              <div className="session-status-subtitle">{stateLabel}</div>
             </div>
           </div>
 
           <div className="session-status-right">
             <div className="state-block">
-              <span>
-                STATE
-              </span>
+              <span>STATE</span>
 
-              <strong>
-                {emergencyState}
-              </strong>
+              <strong>{emergencyState}</strong>
             </div>
 
             <div className="state-divider"></div>
 
             <div className="state-block">
-              <span>
-                PRIORITY
-              </span>
+              <span>PRIORITY</span>
 
-              <strong
-                className={`priority-text ${priority}`}
-              >
+              <strong className={`priority-text ${priority}`}>
                 {getPriorityLabel()}
               </strong>
             </div>
@@ -838,111 +660,70 @@ function App() {
           <div className="card voice-card">
             <div className="card-header">
               <div>
-                <div className="eyebrow">
-                  PRIMARY INTERACTION
-                </div>
+                <div className="eyebrow">PRIMARY INTERACTION</div>
 
-                <h2>
-                  Voice Control
-                </h2>
+                <h2>Voice Control</h2>
 
                 <p>
-                  Speak naturally.
-                  The navigator
-                  listens, reasons
-                  through the current
-                  state, and responds
-                  with voice.
+                  Speak naturally. The navigator listens, reasons through the
+                  current state, and responds with voice.
                 </p>
               </div>
 
-              <div className="card-number">
-                01
-              </div>
+              <div className="card-number">01</div>
             </div>
 
             <div className="voice-control-area">
               <div
-                className={`voice-ring ${
-                  listening
-                    ? "active"
-                    : ""
-                } ${
-                  isSpeaking
-                    ? "speaking"
-                    : ""
+                className={`voice-ring ${listening ? "active" : ""} ${
+                  isSpeaking ? "speaking" : ""
                 }`}
               >
                 <button
-                  className={`mic-button ${
-                    listening
-                      ? "listening"
-                      : ""
-                  } ${
-                    isSpeaking
-                      ? "speaking"
-                      : ""
+                  className={`mic-button ${listening ? "listening" : ""} ${
+                    isSpeaking ? "speaking" : ""
                   }`}
-                  onClick={
-                    startListening
-                  }
-                  disabled={
-                    isProcessing
-                  }
+                  onClick={startListening}
+                  disabled={isProcessing}
                   aria-label="Start voice input"
                 >
-                  <span className="mic-icon">
-                    {listening
-                      ? "●"
-                      : "◉"}
-                  </span>
+                  <span className="mic-icon">{listening ? "â—" : "â—‰"}</span>
                 </button>
               </div>
 
               <div className="voice-state">
                 <div className="voice-state-title">
-                  {getStatusIcon()}{" "}
-                  {getStatusText()}
+                  {getStatusIcon()} {getStatusText()}
                 </div>
 
                 <div className="voice-state-description">
                   {listening
                     ? "Describe what is happening."
                     : isSpeaking
-                    ? "You can interrupt the response with new critical information."
-                    : isProcessing
-                    ? "Updating the emergency state..."
-                    : "Tap the microphone to speak."}
+                      ? "You can interrupt the response with new critical information."
+                      : isProcessing
+                        ? "Updating the emergency state..."
+                        : "Tap the microphone to speak."}
                 </div>
               </div>
 
               {transcript && (
                 <div className="live-transcript">
-                  <div className="transcript-label">
-                    LIVE TRANSCRIPT
-                  </div>
+                  <div className="transcript-label">LIVE TRANSCRIPT</div>
 
-                  <div className="transcript-text">
-                    “{transcript}”
-                  </div>
+                  <div className="transcript-text">â€œ{transcript}â€</div>
                 </div>
               )}
             </div>
 
             <div className="voice-footer">
               <div className="voice-capability">
-                <span className="capability-icon">
-                  MIC
-                </span>
-
+                <span className="capability-icon">MIC</span>
                 Browser speech recognition
               </div>
 
               <div className="voice-capability">
-                <span className="capability-icon">
-                  R
-                </span>
-
+                <span className="capability-icon">R</span>
                 Rime voice output
               </div>
             </div>
@@ -952,19 +733,11 @@ function App() {
           <div className="card conversation-card">
             <div className="card-header">
               <div>
-                <div className="eyebrow">
-                  LIVE SESSION
-                </div>
+                <div className="eyebrow">LIVE SESSION</div>
 
-                <h2>
-                  Emergency Session
-                </h2>
+                <h2>Emergency Session</h2>
 
-                <p>
-                  Conversation and
-                  state updates appear
-                  here in real time.
-                </p>
+                <p>Conversation and state updates appear here in real time.</p>
               </div>
 
               <div className="session-live">
@@ -974,139 +747,90 @@ function App() {
             </div>
 
             <div className="conversation">
-              {messages.length ===
-              0 ? (
+              {messages.length === 0 ? (
                 <div className="empty-conversation">
-                  <div className="empty-icon">
-                    +
-                  </div>
+                  <div className="empty-icon">+</div>
 
-                  <h3>
-                    Session ready
-                  </h3>
+                  <h3>Session ready</h3>
 
                   <p>
-                    Tell the navigator
-                    what is happening.
-                    Your voice will
-                    start the emergency
-                    workflow.
+                    Tell the navigator what is happening. Your voice will start
+                    the emergency workflow.
                   </p>
 
                   <div className="example-prompt">
                     Try saying:
-
                     <strong>
-                      “My father is having
-                      difficulty breathing.”
+                      â€œMy father is having difficulty breathing.â€
                     </strong>
                   </div>
                 </div>
               ) : (
                 <div className="message-list">
-                  {messages.map(
-                    (
-                      message,
-                      index
-                    ) => (
-                      <div
-                        className={`message-row ${message.role}`}
-                        key={`${message.time}-${index}`}
-                      >
-                        <div className="message-avatar">
-                          {message.role ===
-                          "user"
-                            ? "YOU"
-                            : "VE"}
-                        </div>
-
-                        <div className="message-content">
-                          <div className="message-meta">
-                            <span>
-                              {message.role ===
-                              "user"
-                                ? "You"
-                                : "Voice ER Navigator"}
-                            </span>
-
-                            <time>
-                              {
-                                message.time
-                              }
-                            </time>
-                          </div>
-
-                          <div className="message-bubble">
-                            {
-                              message.text
-                            }
-                          </div>
-                        </div>
+                  {messages.map((message, index) => (
+                    <div
+                      className={`message-row ${message.role}`}
+                      key={`${message.time}-${index}`}
+                    >
+                      <div className="message-avatar">
+                        {message.role === "user" ? "YOU" : "VE"}
                       </div>
-                    )
-                  )}
+
+                      <div className="message-content">
+                        <div className="message-meta">
+                          <span>
+                            {message.role === "user"
+                              ? "You"
+                              : "Voice ER Navigator"}
+                          </span>
+
+                          <time>{message.time}</time>
+                        </div>
+
+                        <div className="message-bubble">{message.text}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
             <div className="conversation-footer">
-              <button
-                className="secondary-button"
-                onClick={
-                  resetSession
-                }
-              >
-                <span>
-                  ↻
-                </span>
-
+              <button className="secondary-button" onClick={resetSession}>
+                <span>â†»</span>
                 Reset Session
               </button>
 
               <div className="conversation-note">
-                No diagnosis • Navigation only
+                No diagnosis â€¢ Navigation only
               </div>
             </div>
           </div>
         </section>
 
         {/* CRITICAL ALERT */}
-        {emergencyState ===
-          STATES.CRITICAL_UNCONSCIOUS && (
+        {emergencyState === STATES.CRITICAL_UNCONSCIOUS && (
           <section className="critical-alert">
-            <div className="critical-alert-icon">
-              !
-            </div>
+            <div className="critical-alert-icon">!</div>
 
             <div className="critical-alert-content">
               <div className="critical-label">
                 CRITICAL INFORMATION DETECTED
               </div>
 
-              <h3>
-                The reported situation
-                has changed.
-              </h3>
+              <h3>The reported situation has changed.</h3>
 
               <p>
-                The person has been
-                reported as unconscious
-                or not responding.
-                Contact your local
-                emergency service
-                immediately and stay
-                with the person.
+                The person has been reported as unconscious or not responding.
+                Contact your local emergency service immediately and stay with
+                the person.
               </p>
             </div>
 
             <div className="critical-state">
-              <span>
-                STATE
-              </span>
+              <span>STATE</span>
 
-              <strong>
-                CRITICAL_UNCONSCIOUS
-              </strong>
+              <strong>CRITICAL_UNCONSCIOUS</strong>
             </div>
           </section>
         )}
@@ -1115,20 +839,13 @@ function App() {
         <section className="recovery-card">
           <div className="recovery-header">
             <div>
-              <div className="eyebrow light">
-                HARD VOICE ENGINEERING
-              </div>
+              <div className="eyebrow light">HARD VOICE ENGINEERING</div>
 
-              <h2>
-                Interruption Recovery
-              </h2>
+              <h2>Interruption Recovery</h2>
 
               <p>
-                The system prioritizes
-                newly spoken critical
-                information over an
-                older response that is
-                still playing.
+                The system prioritizes newly spoken critical information over an
+                older response that is still playing.
               </p>
             </div>
 
@@ -1137,76 +854,53 @@ function App() {
                 className={`recovery-status-dot ${interruptionStatus}`}
               ></span>
 
-              {interruptionStatus ===
-              "detected"
+              {interruptionStatus === "detected"
                 ? "Interruption detected"
-                : interruptionStatus ===
-                  "processing"
-                ? "Updating state"
-                : interruptionStatus ===
-                  "recovered"
-                ? "Recovered"
-                : "Monitoring"}
+                : interruptionStatus === "processing"
+                  ? "Updating state"
+                  : interruptionStatus === "recovered"
+                    ? "Recovered"
+                    : "Monitoring"}
             </div>
           </div>
 
           <div className="recovery-flow">
             <div className="flow-step">
-              <div className="flow-icon">
-                01
-              </div>
+              <div className="flow-icon">01</div>
 
-              <span>
-                Assistant speaking
-              </span>
+              <span>Assistant speaking</span>
             </div>
 
             <div className="flow-line"></div>
 
             <div className="flow-step">
-              <div className="flow-icon">
-                02
-              </div>
+              <div className="flow-icon">02</div>
 
-              <span>
-                User interrupts
-              </span>
+              <span>User interrupts</span>
             </div>
 
             <div className="flow-line"></div>
 
             <div className="flow-step">
-              <div className="flow-icon">
-                03
-              </div>
+              <div className="flow-icon">03</div>
 
-              <span>
-                Old response stopped
-              </span>
+              <span>Old response stopped</span>
             </div>
 
             <div className="flow-line"></div>
 
             <div className="flow-step">
-              <div className="flow-icon">
-                04
-              </div>
+              <div className="flow-icon">04</div>
 
-              <span>
-                State updated
-              </span>
+              <span>State updated</span>
             </div>
 
             <div className="flow-line"></div>
 
             <div className="flow-step">
-              <div className="flow-icon">
-                05
-              </div>
+              <div className="flow-icon">05</div>
 
-              <span>
-                New Rime response
-              </span>
+              <span>New Rime response</span>
             </div>
           </div>
 
@@ -1215,16 +909,12 @@ function App() {
               <div className="event-marker"></div>
 
               <div>
-                <div className="event-label">
-                  LATEST INTERRUPTION
-                </div>
+                <div className="event-label">LATEST INTERRUPTION</div>
 
                 <div className="event-text">
-                  “
-                  {
-                    lastInterruptedText
-                  }
-                  ”
+                  â€œ
+                  {lastInterruptedText}
+                  â€
                 </div>
               </div>
             </div>
@@ -1232,33 +922,21 @@ function App() {
 
           <div className="recovery-action">
             <div className="recovery-explanation">
-              <strong>
-                Stress-test the voice
-                pipeline
-              </strong>
+              <strong>Stress-test the voice pipeline</strong>
 
               <span>
-                Simulate a critical
-                interruption while
-                the assistant is
+                Simulate a critical interruption while the assistant is
                 responding.
               </span>
             </div>
 
             <button
               className="demo-button"
-              onClick={
-                runInterruptionDemo
-              }
-              disabled={
-                isProcessing
-              }
+              onClick={runInterruptionDemo}
+              disabled={isProcessing}
             >
               Run Interruption Test
-
-              <span>
-                →
-              </span>
+              <span>â†’</span>
             </button>
           </div>
         </section>
@@ -1267,123 +945,76 @@ function App() {
         <section className="architecture-section">
           <div className="section-heading">
             <div>
-              <div className="eyebrow">
-                SYSTEM ARCHITECTURE
-              </div>
+              <div className="eyebrow">SYSTEM ARCHITECTURE</div>
 
-              <h2>
-                Built around explicit
-                voice state.
-              </h2>
+              <h2>Built around explicit voice state.</h2>
             </div>
 
             <p>
-              Four layers work together
-              to make voice the primary
-              interaction rather than an
-              optional chatbot feature.
+              Four layers work together to make voice the primary interaction
+              rather than an optional chatbot feature.
             </p>
           </div>
 
           <div className="architecture-grid">
             <div className="architecture-card">
-              <div className="architecture-number">
-                01
-              </div>
+              <div className="architecture-number">01</div>
 
-              <div className="architecture-icon">
-                MIC
-              </div>
+              <div className="architecture-icon">MIC</div>
 
-              <h3>
-                Voice Input
-              </h3>
+              <h3>Voice Input</h3>
 
               <p>
-                Browser speech
-                recognition captures
-                the user's spoken
-                emergency information.
+                Browser speech recognition captures the user's spoken emergency
+                information.
               </p>
 
-              <div className="architecture-tag">
-                SPEECH
-              </div>
+              <div className="architecture-tag">SPEECH</div>
             </div>
 
             <div className="architecture-card">
-              <div className="architecture-number">
-                02
-              </div>
+              <div className="architecture-number">02</div>
 
-              <div className="architecture-icon">
-                STATE
-              </div>
+              <div className="architecture-icon">STATE</div>
 
-              <h3>
-                State Controller
-              </h3>
+              <h3>State Controller</h3>
 
               <p>
-                Explicit emergency
-                states preserve the
-                current context
+                Explicit emergency states preserve the current context
                 throughout the session.
               </p>
 
-              <div className="architecture-tag">
-                CONTEXT
-              </div>
+              <div className="architecture-tag">CONTEXT</div>
             </div>
 
             <div className="architecture-card">
-              <div className="architecture-number">
-                03
-              </div>
+              <div className="architecture-number">03</div>
 
-              <div className="architecture-icon">
-                ↻
-              </div>
+              <div className="architecture-icon">â†»</div>
 
-              <h3>
-                Interruption Manager
-              </h3>
+              <h3>Interruption Manager</h3>
 
               <p>
-                New critical input
-                invalidates stale
-                responses and takes
+                New critical input invalidates stale responses and takes
                 priority immediately.
               </p>
 
-              <div className="architecture-tag">
-                RECOVERY
-              </div>
+              <div className="architecture-tag">RECOVERY</div>
             </div>
 
             <div className="architecture-card">
-              <div className="architecture-number">
-                04
-              </div>
+              <div className="architecture-number">04</div>
 
-              <div className="architecture-icon">
-                R
-              </div>
+              <div className="architecture-icon">R</div>
 
-              <h3>
-                Rime TTS
-              </h3>
+              <h3>Rime TTS</h3>
 
               <p>
-                Rime generates the
-                primary spoken output
-                delivered back to the
+                Rime generates the primary spoken output delivered back to the
                 user.
               </p>
 
-              <div className="architecture-tag">
-                VOICE
-              </div>
+              <div className="architecture-tag">VOICE</div>
             </div>
           </div>
         </section>
@@ -1391,9 +1022,7 @@ function App() {
         {/* ERROR */}
         {error && (
           <div className="error-banner">
-            <span>
-              !
-            </span>
+            <span>!</span>
 
             {error}
           </div>
@@ -1401,23 +1030,15 @@ function App() {
 
         {/* SAFETY */}
         <section className="safety-note">
-          <div className="safety-icon">
-            i
-          </div>
+          <div className="safety-icon">i</div>
 
           <div>
-            <strong>
-              Prototype safety notice
-            </strong>
+            <strong>Prototype safety notice</strong>
 
             <p>
-              Voice ER Navigator is a
-              prototype for emergency
-              navigation and communication.
-              It does not diagnose medical
-              conditions and does not
-              replace emergency services
-              or trained professionals.
+              Voice ER Navigator is a prototype for emergency navigation and
+              communication. It does not diagnose medical conditions and does
+              not replace emergency services or trained professionals.
             </p>
           </div>
         </section>
@@ -1426,19 +1047,12 @@ function App() {
       {/* FOOTER */}
       <footer className="footer">
         <div>
-          <strong>
-            Voice ER Navigator
-          </strong>
+          <strong>Voice ER Navigator</strong>
 
-          <span>
-            Voice-first emergency
-            navigation prototype
-          </span>
+          <span>Voice-first emergency navigation prototype</span>
         </div>
 
-        <div className="footer-right">
-          Built for the Rime Hackathon
-        </div>
+        <div className="footer-right">Built for the Rime Hackathon</div>
       </footer>
     </div>
   );
